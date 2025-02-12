@@ -4,16 +4,15 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const db = require('./db/database');
 require('dotenv').config({ path: './entorno.env' });
-const http = require('http');  // Requiere 'http' para Socket.IO
-const socketIo = require('socket.io');  // Requiere 'socket.io'
-const sharedSession = require('express-socket.io-session');  // Para compartir la sesión con Socket.IO
-
+const http = require('http'); 
+const socketIo = require('socket.io'); 
+const sharedSession = require('express-socket.io-session'); 
 const app = express();
 const port = 3000;
-const server = http.createServer(app);  // Crea el servidor HTTP con Express
-const io = socketIo(server);  // Asocia Socket.IO con el servidor
+const server = http.createServer(app); 
+const io = socketIo(server); 
 
-// Configura la sesión de Express
+
 const expressSession = session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -21,15 +20,15 @@ const expressSession = session({
     cookie: { secure: false }
 });
 
-app.use(expressSession);  // Usa la sesión en Express
-io.use(sharedSession(expressSession, { autoSave: true }));  // Comparte la sesión con Socket.IO
+app.use(expressSession); 
+io.use(sharedSession(expressSession, { autoSave: true }));
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 app.set('view engine', 'ejs');
 
-// Rutas de la aplicación
+// RUTAS
 app.get('/', (req, res) => {
     if (!req.session.userId) {
         return res.redirect('/login');
@@ -46,16 +45,16 @@ app.get('/', (req, res) => {
         }
     );
 });
-
+//REGISTRO
 app.get('/register', (req, res) => {
-    res.render('register', { error: null });
+    res.render('register', { error: null, success: null });
 });
 
 app.post('/register', async (req, res) => {
     const { username, email, password, confirmPassword } = req.body;
 
     if (password !== confirmPassword) {
-        return res.render('register', { error: 'Las contraseñas no coinciden' });
+        return res.render('register', { error: 'Las contraseñas no coinciden', success: null });
     }
 
     try {
@@ -67,18 +66,18 @@ app.post('/register', async (req, res) => {
             (err) => {
                 if (err) {
                     console.error('Error al registrar usuario:', err.message);
-                    return res.render('register', { error: 'El usuario ya existe o hubo un problema' });
+                    return res.render('register', { error: 'El usuario ya existe o hubo un problema', success: null });
                 }
                 console.log('Usuario registrado con éxito');
-                res.redirect('/login');
+                res.render('register', { error: null, success: '¡Registro exitoso! Ahora puedes iniciar sesión.' });
             }
         );
     } catch (error) {
         console.error('Error en el servidor:', error.message);
-        res.render('register', { error: 'Error en el servidor' });
+        res.render('register', { error: 'Error en el servidor', success: null });
     }
 });
-
+//LOGIN
 app.get('/login', (req, res) => {
     res.render('login', { error: null });
 });
@@ -104,12 +103,12 @@ app.post('/login', async (req, res) => {
             }
 
             req.session.userId = user.id;
-            req.session.username = user.username;  // Almacena el nombre de usuario en la sesión
+            req.session.username = user.username;
             res.redirect('/');
         }
     );
 });
-
+//PERFIL
 app.get('/profile', (req, res) => {
     if (!req.session.userId) {
         return res.redirect('/login');
@@ -126,7 +125,7 @@ app.get('/profile', (req, res) => {
         }
     );
 });
-
+//CERRAR SESION
 app.get('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
@@ -136,7 +135,7 @@ app.get('/logout', (req, res) => {
     });
 });
 
-// Ruta de chat
+//CHAT
 app.get('/chat', (req, res) => {
     if (!req.session.userId) {
         return res.redirect('/login');
@@ -146,7 +145,7 @@ app.get('/chat', (req, res) => {
         if (err || !user) {
             return res.redirect('/login');
         }
-        res.render('chat', { username: user.username });  // Renderiza la vista 'chat.ejs'
+        res.render('chat', { username: user.username });
     });
 });
 
@@ -154,10 +153,9 @@ app.get('/chat', (req, res) => {
 io.on('connection', (socket) => {
     console.log('Un usuario se ha conectado');
 
-    // Cuando el cliente envía un mensaje
     socket.on('chat message', (msg) => {
-        const username = socket.handshake.session.username;  // Obtener el nombre de usuario desde la sesión
-        io.emit('chat message', { username: username, message: msg });  // Emitir a todos los usuarios
+        const username = socket.handshake.session.username; 
+        io.emit('chat message', { username: username, message: msg }); 
     });
 
     // Cuando el cliente se desconecta
